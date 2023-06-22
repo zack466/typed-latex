@@ -19,6 +19,7 @@ export enum TokenType {
   LeftParen,
   RightParen,
   Comma,
+  Pipe,
   Eq,
   Word,
   Dollar,
@@ -36,6 +37,7 @@ let REGEX = {
   [TokenType.LeftParen]: /^\(/,
   [TokenType.RightParen]: /^\)/,
   [TokenType.Comma]: /^,/,
+  [TokenType.Pipe]: /^\|/,
   [TokenType.Eq]: /^=/,
   [TokenType.Word]: /^[^\s\\%\{\},\$\[\]\(\)=\|]+/,
   [TokenType.Dollar]: /^\$\$/
@@ -131,6 +133,7 @@ export class Lexer {
       TokenType.LeftParen,
       TokenType.RightParen,
       TokenType.Comma,
+      TokenType.Pipe,
       TokenType.Eq,
       TokenType.Word,
       TokenType.Dollar,

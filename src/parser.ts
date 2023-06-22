@@ -16,6 +16,8 @@ export enum SyntaxKind {
   Environment,
   Math,
   CurlyGroup,
+  BracketGroup,
+  MixedGroup,
   Command,
 }
 
@@ -104,6 +106,15 @@ export class Parser {
     this.idx++;
   }
 
+  expect2(type1: TokenType, type2: TokenType) {
+    let token = this.peek();
+    if (token.type !== type1 && token.type !== type2) {
+      throw new ParseError(`Expected token of type ${TokenType[type1]} or ${TokenType[type2]} at ${token.row}:${token.column}, found ${TokenType[token.type]} instead`);
+    }
+    this.builder.push(token);
+    this.idx++;
+  }
+
   ignore() {
     this.idx++;
   }
@@ -130,6 +141,34 @@ export class Parser {
       this.content();
     }
     this.expect(TokenType.RightCurly);
+    this.builder.end_node()
+  }
+
+  bracket_group() {
+    this.builder.start_node(SyntaxKind.BracketGroup)
+    this.expect(TokenType.LeftBracket);
+    while (this.hasNext()) {
+      let token = this.peek();
+      if (token.type == TokenType.RightCurly || token.type == TokenType.RightBracket || (token.type == TokenType.Command && token.tokenData === "end")) {
+        break;
+      }
+      this.content();
+    }
+    this.expect(TokenType.RightBracket);
+    this.builder.end_node()
+  }
+
+  mixed_group() {
+    this.builder.start_node(SyntaxKind.MixedGroup)
+    this.expect2(TokenType.LeftParen, TokenType.LeftBracket);
+    while (this.hasNext()) {
+      let token = this.peek();
+      if (token.type == TokenType.RightCurly || token.type == TokenType.RightParen || token.type == TokenType.RightBracket || (token.type == TokenType.Command && token.tokenData === "end")) {
+        break;
+      }
+      this.content();
+    }
+    this.expect2(TokenType.RightParen, TokenType.RightBracket);
     this.builder.end_node()
   }
 
@@ -162,12 +201,60 @@ export class Parser {
           this.curly_group();
           continue;
         }
-        // TODO: left parens/left brackets
+        case TokenType.LeftBracket:
+        case TokenType.LeftParen: {
+          this.mixed_group();
+          continue;
+        }
         default:
-          break;
+          throw new ParseError("Unimplemented")
       }
       break;
     }
+    this.builder.end_node();
+  }
+
+  begin() {
+    this.builder.start_node(SyntaxKind.Begin);
+    this.consume();
+    this.trivia();
+
+    let token = this.peek();
+    if (token.type === TokenType.LeftCurly) {
+      this.curly_group();
+    }
+
+    if (token.type === TokenType.LeftBracket) {
+      this.bracket_group();
+    }
+
+    this.builder.end_node();
+  }
+
+  end() {
+    this.builder.start_node(SyntaxKind.End);
+    this.consume();
+    this.trivia();
+
+    let token = this.peek();
+    if (token.type === TokenType.LeftCurly) {
+      this.curly_group();
+    }
+
+    this.builder.end_node();
+  }
+
+  environment() {
+    this.builder.start_node(SyntaxKind.Environment);
+    this.begin();
+    while (this.hasNext()) {
+      let token = this.peek();
+      if (token.type === TokenType.RightCurly || (token.type == TokenType.Command || token.tokenData === "end")) {
+        break
+      }
+      this.content();
+    }
+    this.end();
     this.builder.end_node();
   }
 
@@ -191,7 +278,8 @@ export class Parser {
       }
       case TokenType.LeftParen:
       case TokenType.LeftBracket: {
-        throw new ParseError(`TODO`)
+        this.mixed_group();
+        break;
       }
       case TokenType.Dollar: {
         this.math();
@@ -199,17 +287,21 @@ export class Parser {
       }
       case TokenType.Word:
       case TokenType.Eq:
+      case TokenType.Pipe:
       case TokenType.Comma: {
         this.consume();
         break;
       }
-      // TODO: specific commands such as begin/end, plus environments
       case TokenType.Command: {
-        this.command();
+        if (token.tokenData === "begin") {
+          this.environment();
+        } else {
+          this.command();
+        }
         break;
       }
       default:
-        break;
+        throw new ParseError("Unimplemented")
     }
   }
 
@@ -223,3 +315,15 @@ export class Parser {
   }
 }
 
+// https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates
+function isToken(node: TokenOrNode): node is Token {
+  return (node as Token).tokenData !== undefined;
+}
+
+export function concatParseTree(node: TokenOrNode): string {
+  if (isToken(node)) {
+    return node.source;
+  } else {
+    return node.children.map(concatParseTree).join("")
+  }
+}
