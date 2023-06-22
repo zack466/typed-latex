@@ -14,17 +14,31 @@ export enum SyntaxKind {
   Begin,
   End,
   Environment,
-  Math,
+  Formula,
+  Equation,
   CurlyGroup,
   BracketGroup,
   MixedGroup,
   Command,
+  Text,
 }
 
-type TokenOrNode = Token | ParseTreeNode
+export type TokenOrNode = Token | ParseTreeNode
+
+function isText(type: TokenType) {
+  return [TokenType.Word, TokenType.LineBreak, TokenType.LineComment, TokenType.Whitespace, TokenType.Comma, TokenType.Pipe].includes(type);
+}
+
+function isCommand(token: Token, name: string) {
+  return token.type === TokenType.Command && token.tokenData === name;
+}
+
+function isTrivia(type: TokenType) {
+  return [TokenType.LineBreak, TokenType.LineComment, TokenType.Whitespace].includes(type);
+}
 
 // an untyped, homogenous parse tree (similar to a Rowan GreenNode)
-interface ParseTreeNode {
+export interface ParseTreeNode {
   kind: SyntaxKind,
   children: TokenOrNode[],
 }
@@ -115,18 +129,23 @@ export class Parser {
     this.idx++;
   }
 
+  expectCommand(name: string) {
+    let token = this.peek();
+    if (!isCommand(token, name)) {
+      throw new ParseError(`Expected \\${name} at ${token.row}:${token.column}, found ${token.source} instead`);
+    }
+    this.builder.push(token);
+    this.idx++;
+  }
+
+
   ignore() {
     this.idx++;
   }
 
   trivia() {
-    while (this.hasNext()) {
-      let token = this.peek();
-      if (token.type == TokenType.LineBreak || token.type == TokenType.Whitespace || token.type == TokenType.LineComment) {
-        this.consume();
-      } else {
-        break;
-      }
+    while (this.hasNext() && isTrivia(this.peek().type)) {
+      this.consume();
     }
   }
 
@@ -149,7 +168,7 @@ export class Parser {
     this.expect(TokenType.LeftBracket);
     while (this.hasNext()) {
       let token = this.peek();
-      if (token.type == TokenType.RightCurly || token.type == TokenType.RightBracket || (token.type == TokenType.Command && token.tokenData === "end")) {
+      if (token.type == TokenType.RightCurly || token.type == TokenType.RightBracket || isCommand(token, "end")) {
         break;
       }
       this.content();
@@ -163,7 +182,7 @@ export class Parser {
     this.expect2(TokenType.LeftParen, TokenType.LeftBracket);
     while (this.hasNext()) {
       let token = this.peek();
-      if (token.type == TokenType.RightCurly || token.type == TokenType.RightParen || token.type == TokenType.RightBracket || (token.type == TokenType.Command && token.tokenData === "end")) {
+      if (token.type == TokenType.RightCurly || token.type == TokenType.RightParen || token.type == TokenType.RightBracket || isCommand(token, "end")) {
         break;
       }
       this.content();
@@ -172,11 +191,26 @@ export class Parser {
     this.builder.end_node()
   }
 
-  math() {
-    this.builder.start_node(SyntaxKind.Math)
+  equation() {
+    this.builder.start_node(SyntaxKind.Equation)
+    this.consume();
     while (this.hasNext) {
       let token = this.peek();
-      if (token.type == TokenType.RightCurly || token.type == TokenType.Dollar || (token.type == TokenType.Command || token.tokenData === "end")) {
+      if (token.type == TokenType.RightCurly || isCommand(token, "end") || isCommand(token, "]")) {
+        break;
+      }
+      this.content();
+    }
+    this.expectCommand("]");
+    this.builder.end_node();
+  }
+
+  formula() {
+    this.builder.start_node(SyntaxKind.Formula)
+    this.consume();
+    while (this.hasNext) {
+      let token = this.peek();
+      if (token.type == TokenType.RightCurly || token.type == TokenType.Dollar || isCommand(token, "end")) {
         break;
       }
       this.content();
@@ -249,12 +283,21 @@ export class Parser {
     this.begin();
     while (this.hasNext()) {
       let token = this.peek();
-      if (token.type === TokenType.RightCurly || (token.type == TokenType.Command || token.tokenData === "end")) {
+      if (token.type === TokenType.RightCurly || isCommand(token, "end")) {
         break
       }
       this.content();
     }
     this.end();
+    this.builder.end_node();
+  }
+
+  text() {
+    this.builder.start_node(SyntaxKind.Text);
+    this.consume();
+    while (this.hasNext() && isText(this.peek().type)) {
+        this.consume();
+    }
     this.builder.end_node();
   }
 
@@ -282,10 +325,13 @@ export class Parser {
         break;
       }
       case TokenType.Dollar: {
-        this.math();
+        this.formula();
         break;
       }
-      case TokenType.Word:
+      case TokenType.Word: {
+        this.text();
+        break;
+      }
       case TokenType.Eq:
       case TokenType.Pipe:
       case TokenType.Comma: {
@@ -295,6 +341,8 @@ export class Parser {
       case TokenType.Command: {
         if (token.tokenData === "begin") {
           this.environment();
+        } else if (token.tokenData === "[") {
+          this.equation();
         } else {
           this.command();
         }
@@ -316,7 +364,7 @@ export class Parser {
 }
 
 // https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates
-function isToken(node: TokenOrNode): node is Token {
+export function isToken(node: TokenOrNode): node is Token {
   return (node as Token).tokenData !== undefined;
 }
 

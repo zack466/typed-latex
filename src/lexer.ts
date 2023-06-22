@@ -40,7 +40,7 @@ let REGEX = {
   [TokenType.Pipe]: /^\|/,
   [TokenType.Eq]: /^=/,
   [TokenType.Word]: /^[^\s\\%\{\},\$\[\]\(\)=\|]+/,
-  [TokenType.Dollar]: /^\$\$/
+  [TokenType.Dollar]: /^\$\$?/
 }
 
 export interface Token {
