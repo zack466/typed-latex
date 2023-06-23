@@ -20,3 +20,7 @@ export function alphabetic(c: string) {
   assert(c.length == 1)
   return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(c[0])
 }
+
+export function whitespace(c: string) {
+  return /^[^\S\r\n]+$/.test(c)
+}

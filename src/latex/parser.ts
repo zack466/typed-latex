@@ -1,5 +1,5 @@
 import { Token, TokenType, tokenize } from "./lexer"
-import { AssertionError, assert } from "./util"
+import { AssertionError, assert } from "../util"
 
 export class ParseError extends Error {
   override name = "ParseError";
@@ -39,6 +39,7 @@ function isTrivia(type: TokenType) {
 
 // an untyped, homogenous parse tree (similar to a Rowan GreenNode)
 export interface ParseTreeNode {
+  // also keep track of parent?
   kind: SyntaxKind,
   children: TokenOrNode[],
 }
@@ -353,13 +354,15 @@ export class Parser {
     }
   }
 
-  parse() {
+  parse(): ParseTreeNode {
     this.builder.start_node(SyntaxKind.Root);
     while (this.hasNext()) {
       this.content();
     }
     this.builder.end_node();
-    return this.builder.finish();
+    let root = this.builder.finish();
+    assert(!isToken(root))
+    return root as ParseTreeNode
   }
 }
 
@@ -374,4 +377,8 @@ export function concatParseTree(node: TokenOrNode): string {
   } else {
     return node.children.map(concatParseTree).join("")
   }
+}
+
+export function concatParseTrees(nodes: TokenOrNode[]): string {
+  return nodes.map(concatParseTree).join("")
 }

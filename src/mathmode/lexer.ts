@@ -1,5 +1,4 @@
-// Inspired by Texlab parser/lexer
-import { Maybe, alphabetic } from "./util"
+import { Maybe, alphabetic, whitespace } from "../util"
 
 export class LexError extends Error {
   override name = "LexError";
@@ -11,7 +10,6 @@ export class LexError extends Error {
 export enum TokenType {
   LineBreak,
   Whitespace,
-  LineComment,
   LeftCurly,
   RightCurly,
   LeftBracket,
@@ -21,15 +19,21 @@ export enum TokenType {
   Comma,
   Pipe,
   Eq,
-  Word,
-  Dollar,
+  Plus,
+  Minus,
+  Asterick,
+  LeftAngle,
+  RightAngle,
+  Underscore,
+  Caret,
+  Number, // sequence of digits
+  Symbol, // a single alphabetic character
   Command,
 }
 
 let REGEX = {
-  [TokenType.LineBreak]: /^[\r\n]+/,
+  [TokenType.LineBreak]: /^\/\//,
   [TokenType.Whitespace]: /^[^\S\r\n]+/,
-  [TokenType.LineComment]: /^%[^\r\n]*/,
   [TokenType.LeftCurly]: /^\{/,
   [TokenType.RightCurly]: /^\}/,
   [TokenType.LeftBracket]: /^\[/,
@@ -39,30 +43,33 @@ let REGEX = {
   [TokenType.Comma]: /^,/,
   [TokenType.Pipe]: /^\|/,
   [TokenType.Eq]: /^=/,
-  [TokenType.Word]: /^[^\s\\%\{\},\$\[\]\(\)=\|]+/,
-  [TokenType.Dollar]: /^\$\$?/
+  [TokenType.Plus]: /^\+/,
+  [TokenType.Minus]: /^\-/,
+  [TokenType.Asterick]: /^\*/,
+  [TokenType.LeftAngle]: /^\</,
+  [TokenType.RightAngle]: /^\>/,
+  [TokenType.Underscore]: /^\_/,
+  [TokenType.Caret]: /^\^/,
+  [TokenType.Number]: /^[0-9]+/,
 }
 
 export interface Token {
   type: TokenType,
   tokenData: any,
   source: string,
-  row: number,
-  column: number,
+  offset: number,
 }
 
 export class Lexer {
   source: string;
   index: number;
-  row: number;
-  column: number;
+  offset: number;
 
   constructor(source: string) {
     this.source = source;
     this.index = 0;
 
-    this.row = 1;
-    this.column = 1;
+    this.offset = 0;
   }
 
   command(): Maybe<Token> {
@@ -70,7 +77,7 @@ export class Lexer {
     // source: https://tex.stackexchange.com/a/66671
     if (this.source[this.index] === "\\") {
       if (this.source.length == this.index + 1) {
-        throw new LexError(`Unexpected EOF at ${this.row}:${this.column}`)
+        throw new LexError(`Unexpected EOF at ${this.offset}`)
       }
       let c = this.source[this.index + 1];
 
@@ -80,11 +87,10 @@ export class Lexer {
           type: TokenType.Command,
           tokenData: c,
           source: this.source.slice(this.index, this.index + 2),
-          row: this.row,
-          column: this.column,
+          offset: this.offset,
         } as Token;
 
-        this.column += 2;
+        this.offset += 2;
         this.index += 2;
 
         return token;
@@ -92,7 +98,7 @@ export class Lexer {
         // sequence of a-zA-Z characters
         let match = /^[a-zA-Z]+/.exec(this.source.slice(this.index + 1));
         if (match === null) {
-          throw new LexError(`Unexpected \\ at ${this.row}:${this.column}`)
+          throw new LexError(`Unexpected \\ at ${this.offset}`)
         }
         let captured = match[0];
 
@@ -100,12 +106,11 @@ export class Lexer {
           type: TokenType.Command,
           tokenData: captured,
           source: this.source.slice(this.index, this.index + 1 + captured.length),
-          row: this.row,
-          column: this.column,
+          offset: this.offset,
         } as Token;
 
-        this.column += 1 + captured.length;
         this.index += 1 + captured.length;
+        this.offset += 1 + captured.length;
 
         return token;
       }
@@ -125,7 +130,6 @@ export class Lexer {
     for (let type of [
       TokenType.LineBreak,
       TokenType.Whitespace,
-      TokenType.LineComment,
       TokenType.LeftCurly,
       TokenType.RightCurly,
       TokenType.LeftBracket,
@@ -135,12 +139,37 @@ export class Lexer {
       TokenType.Comma,
       TokenType.Pipe,
       TokenType.Eq,
-      TokenType.Word,
-      TokenType.Dollar,
+      TokenType.Plus,
+      TokenType.Minus,
+      TokenType.Asterick,
+      TokenType.LeftAngle,
+      TokenType.RightAngle,
+      TokenType.Underscore,
+      TokenType.Caret,
+      TokenType.Number,
+      TokenType.Symbol,
       TokenType.Command,
     ]) {
       if (type === TokenType.Command) {
-        return this.command();
+        let tok = this.command();
+        if (tok !== null) {
+          return tok;
+        }
+      } else if (type === TokenType.Symbol) {
+        let c = this.source[this.index]
+        if (alphabetic(c)) {
+          let token = {
+            type: TokenType.Symbol,
+            tokenData: c,
+            source: this.source.slice(this.index, this.index + 1),
+            offset: this.offset,
+          } as Token;
+
+          this.index += 1
+          this.offset += 1
+
+        return token;
+        }
       } else {
         // match regex
         let match = REGEX[type].exec(this.source.slice(this.index));
@@ -154,18 +183,12 @@ export class Lexer {
           type: type,
           tokenData: null,
           source: this.source.slice(this.index, this.index + captured.length),
-          row: this.row,
-          column: this.column,
+          offset: this.offset,
         } as Token;
 
         // iterate index/column/row counters
-        this.column += captured.length;
+        this.offset += captured.length;
         this.index += captured.length;
-
-        if (type == TokenType.LineBreak) {
-          this.row += 1;
-          this.column = 1;
-        }
 
         return token;
       }

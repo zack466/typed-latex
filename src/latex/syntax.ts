@@ -1,8 +1,8 @@
-import { Maybe, assert } from "./util"
-import { ParseTreeNode, SyntaxKind, TokenOrNode, isToken } from "./parser"
+import { Maybe, assert } from "../util"
+import { ParseTreeNode, SyntaxKind, TokenOrNode, concatParseTrees, isToken } from "./parser"
 import { Token, TokenType } from "./lexer"
 
-function findFirstToken(arr: TokenOrNode[], type: TokenType): Maybe<Token> {
+export function findFirstToken(arr: TokenOrNode[], type: TokenType): Maybe<Token> {
   for (let e of arr) {
     if (isToken(e) && e.type === type) {
       return e;
@@ -11,7 +11,7 @@ function findFirstToken(arr: TokenOrNode[], type: TokenType): Maybe<Token> {
   return null;
 }
 
-function findFirstNode(arr: TokenOrNode[], kind: SyntaxKind): Maybe<ParseTreeNode> {
+export function findFirstNode(arr: TokenOrNode[], kind: SyntaxKind): Maybe<ParseTreeNode> {
   for (let e of arr) {
     if (!isToken(e) && e.kind === kind) {
       return e;
@@ -21,12 +21,12 @@ function findFirstNode(arr: TokenOrNode[], kind: SyntaxKind): Maybe<ParseTreeNod
 }
 
 // a typed layer over parse tree nodes
-interface ASTNode {
+export interface ASTNode {
   syntax: ParseTreeNode,
   type: SyntaxKind,
 }
 
-class Begin implements ASTNode {
+export class Begin implements ASTNode {
   syntax: ParseTreeNode;
   type: SyntaxKind.Begin;
 
@@ -42,7 +42,7 @@ class Begin implements ASTNode {
   }
 }
 
-class End implements ASTNode {
+export class End implements ASTNode {
   syntax: ParseTreeNode;
   type: SyntaxKind.End;
 
@@ -58,7 +58,7 @@ class End implements ASTNode {
   }
 }
 
-class Environment implements ASTNode {
+export class Environment implements ASTNode {
   syntax: ParseTreeNode;
   type: SyntaxKind.Environment;
 
@@ -82,5 +82,16 @@ class Environment implements ASTNode {
       return null;
     }
     return new End(node);
+  }
+
+  bodyText(): Maybe<string> {
+    let begin = findFirstNode(this.syntax.children, SyntaxKind.Begin);
+    let end = findFirstNode(this.syntax.children, SyntaxKind.End);
+    if (begin === null || end === null) {
+      return null;
+    }
+    let i = this.syntax.children.indexOf(begin);
+    let j = this.syntax.children.indexOf(end);
+    return concatParseTrees(this.syntax.children.slice(i + 1, j));
   }
 }
