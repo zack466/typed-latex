@@ -24,3 +24,11 @@ export function alphabetic(c: string) {
 export function whitespace(c: string) {
   return /^[^\S\r\n]+$/.test(c)
 }
+
+export type Enum = symbol | number | string
+
+// returns the number of elements in a zero-indexed enum
+export function enumSize<E extends Enum>(e: E) {
+  return Object.values(e).length / 2
+}
+
