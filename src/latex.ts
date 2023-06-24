@@ -1,8 +1,9 @@
 // Inspired by Texlab parser/lexer
 import { Maybe, alphabetic, Enum, assert } from "./util"
 import { Lexer, LexError, Token } from "./lexer"
-import { Parser, ParseTreeNode, ParseError, isNode } from "./parser"
+import { Parser, ParseTreeNode, ParseError, isNode, ASTNode, findFirstToken, findFirstNode, concatParseTrees } from "./parser"
 
+// Lexing
 export enum TokenType {
   LineBreak,
   Whitespace,
@@ -116,6 +117,7 @@ export class LatexLexer extends Lexer<TokenType> {
   }
 }
 
+// Parsing
 export enum SyntaxKind {
   Root,
   Begin,
@@ -130,10 +132,12 @@ export enum SyntaxKind {
   Text,
 }
 
+// this is pretty much just a basic recursive descent parser
 export class LatexParser extends Parser<TokenType, SyntaxKind> {
   constructor(lexer: LatexLexer) {
     super(lexer);
   }
+
   expectCommand(name: string) {
     let token = this.peek();
     const [row, col] = this.lexer.getSourceLocation(token.offset);
@@ -364,5 +368,78 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     let root = this.builder.finish();
     assert(isNode(root))
     return root as ParseTreeNode<TokenType, SyntaxKind>
+  }
+}
+
+// AST
+// a typed layer over parse tree nodes
+
+export class Begin implements ASTNode<TokenType, SyntaxKind> {
+  syntax: ParseTreeNode<TokenType, SyntaxKind>;
+  type: SyntaxKind.Begin;
+
+  constructor(syntax: ParseTreeNode<TokenType, SyntaxKind>) {
+    assert(syntax !== null);
+    assert(syntax.kind === SyntaxKind.Begin);
+    this.syntax = syntax;
+  }
+
+  name(): Maybe<string> {
+    let tok = findFirstToken(this.syntax.children, TokenType.Word);
+    return tok === null ? null : tok.source
+  }
+}
+
+export class End implements ASTNode<TokenType, SyntaxKind> {
+  syntax: ParseTreeNode<TokenType, SyntaxKind>;
+  type: SyntaxKind.End;
+
+  constructor(syntax: ParseTreeNode<TokenType, SyntaxKind>) {
+    assert(syntax !== null);
+    assert(syntax.kind === SyntaxKind.End);
+    this.syntax = syntax;
+  }
+
+  name(): Maybe<string> {
+    let tok = findFirstToken(this.syntax.children, TokenType.Word);
+    return tok === null ? null : tok.source
+  }
+}
+
+export class Environment implements ASTNode<TokenType, SyntaxKind> {
+  syntax: ParseTreeNode<TokenType, SyntaxKind>;
+  type: SyntaxKind.Environment;
+
+  constructor(syntax: ParseTreeNode<TokenType, SyntaxKind>) {
+    assert(syntax !== null);
+    assert(syntax.kind === SyntaxKind.Environment)
+    this.syntax = syntax;
+  }
+
+  begin(): Maybe<Begin> {
+    let node = findFirstNode(this.syntax.children, SyntaxKind.Begin);
+    if (node === null) {
+      return null;
+    }
+    return new Begin(node);
+  }
+
+  end(): Maybe<End> {
+    let node = findFirstNode(this.syntax.children, SyntaxKind.End);
+    if (node === null) {
+      return null;
+    }
+    return new End(node);
+  }
+
+  bodyText(): Maybe<string> {
+    let begin = findFirstNode(this.syntax.children, SyntaxKind.Begin);
+    let end = findFirstNode(this.syntax.children, SyntaxKind.End);
+    if (begin === null || end === null) {
+      return null;
+    }
+    let i = this.syntax.children.indexOf(begin);
+    let j = this.syntax.children.indexOf(end);
+    return concatParseTrees(this.syntax.children.slice(i + 1, j));
   }
 }

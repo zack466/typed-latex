@@ -1,4 +1,5 @@
-import { LatexLexer, LatexParser } from "./latex"
+import { intoNode } from "./parser"
+import { LatexLexer, LatexParser, Environment } from "./latex"
 import { MathLexer } from "./mathmode"
 
 function latex() {
@@ -8,7 +9,9 @@ function latex() {
 
   const lexer = new LatexLexer(text);
   const parser = new LatexParser(lexer);
-  console.log(parser.parse())
+  const root = parser.parse()
+  const env = new Environment(intoNode(root.children[0]))
+  console.log(env.bodyText());
 }
 latex();
 
@@ -18,4 +21,4 @@ function math() {
   const tokens = lexer.tokenize();
   console.log(tokens)
 }
-math();
+// math();

@@ -1,5 +1,5 @@
 import { Token, Lexer } from "./lexer"
-import { AssertionError, Enum } from "./util"
+import { assert, AssertionError, Enum, Maybe } from "./util"
 
 export class ParseError extends Error {
   override name = "ParseError";
@@ -14,6 +14,7 @@ export type TokenOrNode<TokenType, SyntaxKind> = Token<TokenType> | ParseTreeNod
 export interface ParseTreeNode<TokenType, SyntaxKind> {
   // also keep track of parent?
   kind: SyntaxKind,
+  syntaxData: any,
   children: TokenOrNode<TokenType, SyntaxKind>[],
 }
 
@@ -27,10 +28,11 @@ class ParseTreeBuilder<TokenType, SyntaxKind> {
     this.children = [];
   }
 
-  start_node(kind: SyntaxKind) {
+  start_node(kind: SyntaxKind, data: any = null) {
     let node = {
       kind: kind,
       children: [],
+      syntaxData: data,
     }
     this.parents.push([node, this.children.length]);
   }
@@ -121,8 +123,18 @@ export function isToken<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, Synt
   return (node as Token<TokenType>).tokenData !== undefined;
 }
 
-export function isNode<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, SyntaxKind>) {
+export function isNode<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, SyntaxKind>): node is ParseTreeNode<TokenType, SyntaxKind> {
   return !isToken(node);
+}
+
+export function intoToken<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, SyntaxKind>): Token<TokenType> {
+  assert(isToken(node));
+  return (node as Token<TokenType>);
+}
+
+export function intoNode<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, SyntaxKind>): ParseTreeNode<TokenType, SyntaxKind> {
+  assert(isNode(node));
+  return (node as ParseTreeNode<TokenType, SyntaxKind>);
 }
 
 export function concatParseTree<TokenType, SyntaxKind>(node: TokenOrNode<TokenType, SyntaxKind>): string {
@@ -135,4 +147,27 @@ export function concatParseTree<TokenType, SyntaxKind>(node: TokenOrNode<TokenTy
 
 export function concatParseTrees<TokenType, SyntaxKind>(nodes: TokenOrNode<TokenType, SyntaxKind>[]): string {
   return nodes.map(concatParseTree).join("")
+}
+
+export function findFirstToken<TokenType, SyntaxKind>(arr: TokenOrNode<TokenType, SyntaxKind>[], type: TokenType): Maybe<Token<TokenType>> {
+  for (let e of arr) {
+    if (isToken(e) && e.type === type) {
+      return e;
+    }
+  }
+  return null;
+}
+
+export function findFirstNode<TokenType, SyntaxKind>(arr: TokenOrNode<TokenType, SyntaxKind>[], kind: SyntaxKind): Maybe<ParseTreeNode<TokenType, SyntaxKind>> {
+  for (let e of arr) {
+    if (isNode(e) && e.kind === kind) {
+      return e;
+    }
+  }
+  return null;
+}
+
+export interface ASTNode<TokenType, SyntaxKind> {
+  syntax: ParseTreeNode<TokenType, SyntaxKind>,
+  type: SyntaxKind,
 }

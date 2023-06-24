@@ -10,4 +10,6 @@ Run `index.ts` with `make run`.
 
 ## Architecture
 
-Currently, the code in `lexer.ts`, `parser.ts`, and `syntax.ts` are for parsing LaTeX into a nice representation to work with.
+Currently, the code in `lexer.ts`, `parser.ts` are for parsing LaTeX into a nice representation to work with.
+You can find the code for parsing LaTeX and LaTeX math mode in `latex.ts` and `mathmode.ts`, respectively.
+Essentially, the LaTeX parser will be used to understand the overall structure of a LaTeX file, and the content inside math environments will be reconstructed and re-parsed in math mode for further processing.

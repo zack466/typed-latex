@@ -1,4 +1,4 @@
-import { Maybe, enumSize, Enum, assert } from "./util"
+import { Maybe, Enum, assert } from "./util"
 
 export class LexError extends Error {
   override name = "LexError";
