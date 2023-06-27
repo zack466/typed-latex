@@ -139,7 +139,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
   }
 
   expectCommand(name: string) {
-    let token = this.peek();
+    let token = this.peek()!;
     const [row, col] = this.lexer.getSourceLocation(token.offset);
     if (!isCommand(token, name)) {
       throw new ParseError(`Expected \\${name} at ${row}:${col}, found ${token.source} instead`);
@@ -149,7 +149,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
   }
 
   trivia() {
-    while (this.hasNext() && isTrivia(this.peek().type)) {
+    while (this.hasNext() && isTrivia(this.peek()!.type)) {
       this.consume();
     }
   }
@@ -158,7 +158,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.CurlyGroup)
     this.expect(TokenType.LeftCurly);
     while (this.hasNext()) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type == TokenType.RightCurly) {
         break;
       }
@@ -172,7 +172,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.BracketGroup)
     this.expect(TokenType.LeftBracket);
     while (this.hasNext()) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type == TokenType.RightCurly || token.type == TokenType.RightBracket || isCommand(token, "end")) {
         break;
       }
@@ -186,7 +186,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.MixedGroup)
     this.expect2(TokenType.LeftParen, TokenType.LeftBracket);
     while (this.hasNext()) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type == TokenType.RightCurly || token.type == TokenType.RightParen || token.type == TokenType.RightBracket || isCommand(token, "end")) {
         break;
       }
@@ -200,7 +200,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.Equation)
     this.consume();
     while (this.hasNext) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type == TokenType.RightCurly || isCommand(token, "end") || isCommand(token, "]")) {
         break;
       }
@@ -214,7 +214,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.Formula)
     this.consume();
     while (this.hasNext) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type == TokenType.RightCurly || token.type == TokenType.Dollar || isCommand(token, "end")) {
         break;
       }
@@ -228,7 +228,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.Command);
     this.consume();
     while (this.hasNext()) {
-      let token = this.peek();
+      let token = this.peek()!;
       switch (token.type) {
         case TokenType.Whitespace:
         case TokenType.LineBreak:
@@ -258,7 +258,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.consume();
     this.trivia();
 
-    let token = this.peek();
+    let token = this.peek()!;
     if (token.type === TokenType.LeftCurly) {
       this.curly_group();
     }
@@ -275,7 +275,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.consume();
     this.trivia();
 
-    let token = this.peek();
+    let token = this.peek()!;
     if (token.type === TokenType.LeftCurly) {
       this.curly_group();
     }
@@ -287,7 +287,7 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
     this.builder.start_node(SyntaxKind.Environment);
     this.begin();
     while (this.hasNext()) {
-      let token = this.peek();
+      let token = this.peek()!;
       if (token.type === TokenType.RightCurly || isCommand(token, "end")) {
         break
       }
@@ -300,14 +300,14 @@ export class LatexParser extends Parser<TokenType, SyntaxKind> {
   text() {
     this.builder.start_node(SyntaxKind.Text);
     this.consume();
-    while (this.hasNext() && isText(this.peek().type)) {
+    while (this.hasNext() && isText(this.peek()!.type)) {
         this.consume();
     }
     this.builder.end_node();
   }
 
   content() {
-    let token = this.peek();
+    let token = this.peek()!;
     const [row, col] = this.lexer.getSourceLocation(token.offset);
     switch (token.type) {
       case TokenType.Whitespace:

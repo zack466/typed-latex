@@ -104,8 +104,9 @@ export class Lexer<TokenType extends Enum> {
         return token;
 
       } else {
-        const tok = lexFn(this)
+        const tok = lexFn(this);
         if (tok !== null) {
+          tok.type = i as TokenType; // since the lexFn may assign the wrong type...
           return tok
         }
       }

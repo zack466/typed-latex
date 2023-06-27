@@ -79,18 +79,21 @@ export class Parser<TokenType extends Enum, SyntaxKind extends Enum> {
     return this.idx < this.tokens.length;
   }
 
-  peek() {
-    return this.tokens[this.idx];
+  peek(): Maybe<Token<TokenType>> {
+    if (this.idx < this.tokens.length) {
+      return this.tokens[this.idx];
+    }
+    return null
   }
 
   consume() {
     let token = this.peek();
-    this.builder.push(token);
+    this.builder.push(token!);
     this.idx++;
   }
 
   expect(type: TokenType) {
-    let token = this.peek();
+    let token = this.peek()!;
     const [row, col] = this.lexer.getSourceLocation(token.offset);
     if (token.type !== type) {
       throw new ParseError(`Expected token of type ${String(type)} at ${row}:${col}, found ${String(token.type)} instead`);
@@ -99,8 +102,17 @@ export class Parser<TokenType extends Enum, SyntaxKind extends Enum> {
     this.idx++;
   }
 
+  expectIgnore(type: TokenType) {
+    let token = this.peek()!;
+    const [row, col] = this.lexer.getSourceLocation(token.offset);
+    if (token.type !== type) {
+      throw new ParseError(`Expected token of type ${String(type)} at ${row}:${col}, found ${String(token.type)} instead`);
+    }
+    this.idx++;
+  }
+
   expect2(type1: TokenType, type2: TokenType) {
-    let token = this.peek();
+    let token = this.peek()!;
     const [row, col] = this.lexer.getSourceLocation(token.offset);
     if (token.type !== type1 && token.type !== type2) {
       throw new ParseError(`Expected token of type ${String(type1)} or ${String(type2)} at ${row}:${col}, found ${String(token.type)} instead`);
@@ -168,6 +180,6 @@ export function findFirstNode<TokenType, SyntaxKind>(arr: TokenOrNode<TokenType,
 }
 
 export interface ASTNode<TokenType, SyntaxKind> {
-  syntax: ParseTreeNode<TokenType, SyntaxKind>,
+  syntax: TokenOrNode<TokenType, SyntaxKind>,
   type: SyntaxKind,
 }
