@@ -431,4 +431,22 @@ export class BinOp implements ASTNode<TokenType, SyntaxKind> {
   }
 }
 
-export type Math = Literal | Symbol | BinOp
+export type Mathmode = Literal | Symbol | BinOp
+
+// I'm starting to think that I should have done this project in OCaml...
+// TODO: implement algebraic data types in typescript so I don't have to suffer as much
+export enum MathType {
+  Numeric,
+  Set,
+  Unknown,
+}
+export type Math = {
+  type: MathType,
+  data: any
+}
+
+// takes an AST, tries to procuce a valid mapping of nodes to math types
+function unify(node: Mathmode, map: Map<Mathmode, Math>) {
+  switch (node.type) {
+  }
+}

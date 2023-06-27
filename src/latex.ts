@@ -443,3 +443,5 @@ export class Environment implements ASTNode<TokenType, SyntaxKind> {
     return concatParseTrees(this.syntax.children.slice(i + 1, j));
   }
 }
+
+export type Latex = Begin | End | Environment
